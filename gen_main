@@ -1,0 +1,83 @@
+# gen_main: Generates main view to invoke subviews
+#
+# Written by Kazunori Iriya <iriyak@lares.dti.ne.jp>
+#
+# Ver 1.0 99.07.11
+#	- The first version
+
+BEGIN {
+	# Initialize global variables
+	_MAIN_TOPVIEW  = "main_topview.htm";
+	_MAIN_SUBVIEW1 = "main_subview1.htm";
+}
+
+# Read configuration
+
+FILENAME ~ /split4oly\.conf/ && /^[^#]/ {
+	split($0, Arr, "\t+");
+	Key2outputp[Arr[1]] = Arr[2];
+	Filename2printname[Arr[3]] = Arr[4];
+	Key2filename[Arr[1]] = Arr[3];
+	next;
+}
+
+
+FILENAME ~ /split4oly\.conf/ {
+	next;
+}
+
+# Generate main view
+
+END {
+	gen_topview(_MAIN_TOPVIEW);
+	gen_subview(_MAIN_SUBVIEW1);
+}
+
+# Subroutines
+
+func gen_topview(f) {
+	print "<html>" > f; # override f
+	print "<head>" >> f;
+	print "<title>Olympia G4 Report Main View</title>" >> f;
+	print "</head>" >> f;
+	print "<frameset cols=20%,*>" >> f;
+	print "<frame " \
+		"src=main_subview1.htm " \
+		"scrolling=yes " \
+		"name=main_subview1>" >> f;
+	printf( \
+		"<frame src=%s " \
+		"scrolling=yes " \
+		"name=main_subview2>\n", Key2filename["banner"]) >> f;
+	print "</frameset>" >> f;
+	print "</html>" >> f;
+}
+
+func gen_subview(f) {
+	print "<html>" > f; # override f
+	print \
+		"<table bgcolor=#eeeeee " \
+		"border=1 width=100% " \
+		"cellspacing=0 " \
+		"cellpadding=3>" >> f;
+	print \
+		"<tr bgcolor=#ff9966>" \
+		"<th>Main View</th>" \
+		"</tr>" >> f;
+	printf(\
+		"<tr align=center>" \
+		"<td>" \
+		"<a href=\"%s\" target=%s>%s</a>" \
+		"</td>" \
+		"</tr>\n", \
+		"fact_topview.htm", "main_anotherview1", "Faction View") >> f;
+	printf(\
+		"<tr align=center>" \
+		"<td>" \
+		"<a href=\"%s\" target=%s>%s</a>" \
+		"</td>" \
+		"</tr>\n", \
+		"prov_topview.htm", "main_anotherview2", "Province View") >> f;
+	print "</table>" >> f;
+	print "</html>" >> f;
+}

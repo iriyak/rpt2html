@@ -1,0 +1,207 @@
+# split4oly: Splits Olympia g2 turn report into parts
+#
+# Written by Kazunori Iriya <iriyak@lares.dti.ne.jp>
+#
+# Ver 1.0 99.07.11
+#	- The first version
+#		- Combine script010 and script012 for splitting parts
+#		- Support the configuration file
+
+# Read configuration
+
+FILENAME ~ /split4oly\.conf/ && /^[^#]/ {
+	split($0, Arr, "\t+");
+	Key2outputp[Arr[1]] = Arr[2];
+	Filename2printname[Arr[3]] = Arr[4];
+	Key2filename[Arr[1]] = Arr[3];
+	Key2outputp[Arr[1]] = Arr[2];
+}
+
+# Banner
+
+/Olympia G4 turn .+$/ {
+	key = "banner";
+	if (Key2outputp[key] == "yes")
+		changeOutputWith(Key2filename[key]);
+	else
+		changeOutputWith("");
+}
+
+# Account summary
+
+/^unit   where  loyal heal B CA gold peas work sail figh under  name/ {
+	key = "accountinfo";
+	if (Key2outputp[key] == "yes")
+		changeOutputWith(Key2filename[key]);
+	else
+		changeOutputWith("");
+}
+
+# Location
+
+/^Location( )+Stack/ {
+	key = "location";
+	if (Key2outputp[key] == "yes")
+		changeOutputWith(Key2filename[key]);
+	else
+		changeOutputWith("");
+}
+
+# Garrison list
+
+/^garr where  men cost  tax forw castle rulers$/ {
+	key = "garrlist";
+	if (Key2outputp[key] == "yes")
+		changeOutputWith(Key2filename[key]);
+	else
+		changeOutputWith("");
+}
+
+# Admit permissions
+
+/^Admit permissions:$/ {
+	key = "admitpermission";
+	if (Key2outputp[key] == "yes")
+		changeOutputWith(Key2filename[key]);
+	else
+		changeOutputWith("");
+}
+
+# Declared attitudes
+
+/^Declared attitudes:$/ {
+	key = "attitude";
+	if (Key2outputp[key] == "yes")
+		changeOutputWith(Key2filename[key]);
+	else
+		changeOutputWith("");
+}
+
+# Unclaimed items
+
+/^Unclaimed items:$/ {
+	key = "unclaimeditem"
+	if (Key2outputp[key] == "yes")
+		changeOutputWith(Key2filename[key]);
+	else
+		changeOutputWith("");
+}
+
+# Garrison log
+
+/^Garrison log$/ {
+	key = "garrlog";
+	if (Key2outputp[key] == "yes")
+		changeOutputWith(Key2filename[key]);
+	else
+		changeOutputWith("");
+}
+
+# Faction and nobles, lore sheet
+
+/^[A-Za-z][a-zA-Z0-9 ']+ \[[a-z0-9]+\]$/ {
+	key = "fact_noble_lore";
+	if (Key2outputp[key] == "yes") {
+		match($0, /\[[a-z0-9]+\]/);
+		s1 = substr($0, RSTART + 1, RLENGTH - 2);
+		changeOutputWith(s1 ".txt");
+	} else
+		changeOutputWith("");
+}
+
+# Province
+
+/^[A-Za-z][a-zA-Z0-9 ']+ \[[a-z][a-z][0-9][0-9]\], / {
+	if (Key2outputp["province"] == "yes") {
+		match($0, /\[[a-z]+[0-9]+\]/);
+		s1 = substr($0, RSTART + 1, RLENGTH - 2);
+		xy = substr(s1, 1, 2);
+		changeOutputWith(xy ".txt");
+		fileOut($0);
+		next;
+	} else
+		changeOutputWith("");
+}
+
+# City
+
+/^[A-Za-z][a-zA-Z0-9 ']+ \[[a-z0-9]+\], .+, in .+/ {
+	# Exception handling for these lines:
+	# "Province controlled by ..."
+	# "Ruled by ................."
+	if ($0 ~ /^Province controlled by/) {
+		fileOut($0);
+		do {
+			getline;
+			fileOut($0);
+		} while ($0 != "");
+		next;
+	}
+
+	if (Key2outputp["city"] == "yes") {
+		if (Key2outputp["incl-city-in-prov"] == "yes") {
+			s1 = $0;
+			sub(/\[[a-z0-9]+\]/, "", s1); # delete brankets
+			match(s1, /\[[a-z0-9]+\]/);
+			s2 = substr(s1, RSTART + 1, RLENGTH - 2);
+			xy = substr(s2, 1, 2);
+			xy01 = substr(s2, 1, 4);
+			changeOutputWith(xy ".txt");
+		}
+		if (Key2outputp["incl-city-in-prov"] == "no") {
+			s1 = $0;
+			match(s1, /\[[a-z0-9]+\]/);
+			x01 = substr(s1, RSTART + 1, RLENGTH - 2);
+			changeOutputWith(x01 ".txt");
+		}
+		fileOut($0);
+		next;
+	} else
+		changeOutputWith("");
+}
+
+/^Lore sheets$/ {
+	key = "loretitle";
+	if (Key2outputp[key] == "yes")
+		changeOutputWith(Key2filename[key]);
+	else
+		changeOutputWith("");
+}
+
+/^New players$/ {
+	key = "newplayer";
+	if (Key2outputp[key] == "yes")
+		changeOutputWith(Key2filename[key]);
+	else
+		changeOutputWith("");
+}
+
+/^Order template$/ {
+	key = "ordertemplate";
+	if (Key2outputp[key] == "yes")
+		changeOutputWith(Key2filename[key]);
+	else
+		changeOutputWith("");
+}
+
+# fileOut each input line.
+
+{
+	fileOut($0);
+}
+
+# Subroutines
+
+func changeOutputWith(aFile) {
+	_SAVEDFILENAME = _FILENAME;
+	_FILENAME = aFile;
+	if (_SAVEDFILENAME != _FILENAME) {
+		print _FILENAME >> Key2filename["filelist"];
+		close(_SAVEDFILENAME);
+	}
+}
+
+func fileOut(aString) {
+	if (_FILENAME != "")
+		print aString >> _FILENAME;
+}

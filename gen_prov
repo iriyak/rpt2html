@@ -1,0 +1,142 @@
+# gen_prov: Generates a subview for provinces
+#
+# Written by Kazunori Iriya <iriyak@lares.dti.ne.jp>
+#
+# Ver 1.0 99.07.11
+#	- The first version
+
+BEGIN {
+	# Initialize global variables
+
+	_PROV_TOPVIEW  = "prov_topview.htm";
+	_PROV_SUBVIEW1 = "prov_subview1.htm";
+
+	# Generate index files.
+
+	print " " > "null.htm";
+	gen_topview(_PROV_TOPVIEW);
+
+	print \
+		"<table bgcolor=#eeeeee " \
+		"border=1 width=100% " \
+		"cellspacing=0 " \
+		"cellpadding=3>" >> _PROV_SUBVIEW1;
+	print \
+		"<tr bgcolor=#ff9966>" \
+		"<th>Row</th>" \
+		"</tr>" >> _PROV_SUBVIEW1; 
+}
+
+# Province
+
+/^[A-Za-z][a-zA-Z0-9 ']+ \[[a-z][a-z][0-9][0-9]\], / {
+	match($0, /\[[a-z]+[0-9]+\]/);
+	s1 = substr($0, RSTART + 1, RLENGTH - 2);
+	xy = substr(s1, 1, 2);
+	xy01 = substr(s1, 1, 4);
+	changeOutputWith(xy ".htm");
+	f = "toc" xy ".htm";
+
+	if (!(xy in RegistListForSubview1)) {
+		printf(\
+		"<tr align=center>" \
+		"<td>" \
+		"<a href=%s target=prov_subview2>%s</a>" \
+		"</td>" \
+		"</tr>\n", f, xy) >> _PROV_SUBVIEW1;
+		print \
+			"<table " \
+			"bgcolor=#eeeeee " \
+			"border=1 " \
+			"width=100% " \
+			"cellspacing=0 " \
+			"cellpadding=3>" >> f;
+		print "<tr bgcolor=#ff9966><th>Prov</th></tr>" >> f;
+		RegistListForSubview1[xy] = "regist";
+		close(_PROV_SUBVIEW1);
+		fileOut("<pre>");
+	}
+	if (!(xy in RegistListForSubview2)) {
+		printf(\
+		"<tr align=center>" \
+		"<td>" \
+		"<a href=%s#%s target=prov_subview3>%s</a>" \
+		"</td>" \
+		"</tr>\n", _FILENAME, xy01, xy01) >> f;
+		RegistListForSubview2[xy01] = "regist";
+		close(f);
+	}
+	fileOut(sprintf("<a name=%s></a>%s", xy01, $0));
+	next;
+}
+
+# City
+
+/^[A-Za-z][a-zA-Z0-9 ']+ \[[a-z0-9]+\], .+, in .+/ {
+	# Exception handling for these lines:
+	# "Province controlled by ..."
+	# "Ruled by ................."
+	if ($0 ~ /^Province controlled by/) {
+		fileOut($0);
+		do {
+			getline;
+			fileOut($0);
+		} while ($0 != "");
+		next;
+	} 
+	s1 = $0;
+	sub(/\[[a-z0-9]+\]/, "", s1); # remove brankets
+	match(s1, /\[[a-z0-9]+\]/);
+	s2 = substr(s1, RSTART + 1, RLENGTH - 2);
+	xy = substr(s2, 1, 2);
+	xy01 = substr(s2, 1, 4);
+	changeOutputWith(xy ".htm");
+	fileOut($0);
+	next;
+}
+
+END {
+	for (xy in RegistListForSubview1) {
+		changeOutputWith(xy ".htm");
+		fileOut("</pre>");
+		changeOutputWith("toc" xy ".htm");
+		fileOut("</table>");
+	}
+	print "</table>" >> _PROV_SUBVIEW1;
+}
+
+# fileOut each input line.
+
+{
+	fileOut($0);
+}
+
+# Subroutines
+
+func gen_topview(f) {
+	print "<html>" > f; # override f
+	print "<head>" >> f;
+	print "<title>Olympia G4 Report Province View</title>" >> f;
+	print "</head>" >> f;
+	print "<frameset cols=12%,12%,*>" >> f;
+	print "<frame " \
+		"src=prov_subview1.htm " \
+		"scrolling=yes " \
+		"name=prov_subview1>" >> f;
+	print "<frame src=null.htm scrolling=yes name=prov_subview2>" >> f;
+	print "<frame src=null.htm scrolling=yes name=prov_subview3>" >> f;
+	print "</frameset>" >> f;
+	print "</html>" >> f;
+}
+
+func changeOutputWith(aFile) {
+	_SAVEDFILENAME = _FILENAME;
+	_FILENAME = aFile;
+	if (_SAVEDFILENAME != _FILENAME)
+		close(_SAVEDFILENAME);
+}
+
+func fileOut(aString) {
+	if (_FILENAME != "")
+		print aString >> _FILENAME;
+}

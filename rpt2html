@@ -1,0 +1,36 @@
+# rpt2html: Generates html index files from a plain Olypia G2 report
+#
+# Written by Kazunori Iriya <iriyak@lares.dti.ne.jp>
+#
+# Ver 1.0 99.07.11
+#	- The first version
+#		- Switch the development tools to UNIX based ones.
+#		- Split AWK scripts into some modules, and integrate
+#		  with the shell.
+#		- Support the configuration file.
+#		- Support turning on/off splitting for each part.
+#		- Support including/separating a city report in/from
+#		  the province report.
+#		- Combine script010.awk and script012.awk.
+#		- Add main view to invoke subviews.
+#		- Enrich an index flame of a subview
+#		- Fix bugs for scanning the report
+
+# You might want to change BINDIR and CONFIG if you save scripts or
+# a configuration file into another directory.
+
+BINDIR=$HOME/bin/rpt2html.d
+CONFIG=$HOME/bin/rpt2html.d/split4oly.conf
+
+FILELIST=`awk '$1 ~ /filelist/ { print $3 }' $CONFIG`
+REPORT=$1;
+
+if [ -f "$REPORT" ]; then
+	awk -f $BINDIR/split4oly $CONFIG $REPORT
+	awk -f $BINDIR/gen_main $CONFIG
+	awk -f $BINDIR/gen_prov [a-z][a-z].txt
+	awk -f $BINDIR/gen_fact $CONFIG $FILELIST
+	cp -p main_topview.htm index.html # for web-server
+	rm -f $FILELIST
+	rm -f [a-z][a-z].txt
+fi

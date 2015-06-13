@@ -1,0 +1,95 @@
+# gen_fact: Generates a subview for the faction
+#
+# Written by Kazunori Iriya <iriyak@lares.dti.ne.jp>
+#
+# Ver 1.0 99.07.11
+#	- The first version
+
+BEGIN {
+	# Initialize global variables
+
+	_FACT_TOPVIEW  = "fact_topview.htm";
+	_FACT_SUBVIEW1 = "fact_subview1.htm";
+
+	# Generate index files.
+
+	print " " > "null.htm";
+
+	print "<html>" >> _FACT_SUBVIEW1;
+	print "<head>" >> _FACT_SUBVIEW1;
+	print "<base target=fact_subview2>" >> _FACT_SUBVIEW1;
+	print "</head>" >> _FACT_SUBVIEW1;
+	print \
+		"<table bgcolor=#eeeeee " \
+		"border=1 width=100% " \
+		"cellspacing=0 " \
+		"cellpadding=3>" >> _FACT_SUBVIEW1;
+	print \
+		"<tr bgcolor=#ff9966>" \
+		"<th>Faction</th>" \
+		"</tr>" >> _FACT_SUBVIEW1; 
+}
+
+# Read configuration
+
+FILENAME ~ /split4oly\.conf/ && /^[^#]/ {
+	split($0, Arr, "\t+");
+	Key2outputp[Arr[1]] = Arr[2];
+	Filename2printname[Arr[3]] = Arr[4];
+	Key2filename[Arr[1]] = Arr[3];
+	next;
+}
+
+
+FILENAME ~ /split4oly\.conf/ {
+	next;
+}
+
+$1 !~ /^[a-z][a-z]\.txt/ {
+	curr = $1;
+	if (!(curr in RegistListForSubview1)) {
+		printname = (curr in Filename2printname) ? \
+			Filename2printname[curr] : basename(curr);
+		printf(\
+			"<tr align=center>" \
+			"<td>" \
+			"<a href=\"%s\">%s</a>" \
+			"</td>" \
+			"</tr>\n", curr, printname) >> _FACT_SUBVIEW1;
+		RegistListForSubview1[curr] = "regist";
+		close(_FACT_SUBVIEW1);
+	}
+}
+
+# City
+
+END {
+	gen_topview(_FACT_TOPVIEW);
+	print "</table>" >> _FACT_SUBVIEW1;
+	print "</html>" >> _FACT_SUBVIEW1;
+}
+
+# Subroutines
+
+func gen_topview(f) {
+	print "<html>" > f; # override f
+	print "<head>" >> f;
+	print "<title>Olympia G4 Report Faction View</title>" >> f;
+	print "</head>" >> f;
+	print "<frameset cols=20%,*>" >> f;
+	print "<frame " \
+		"src=fact_subview1.htm " \
+		"scrolling=yes " \
+		"name=fact_subview1>" >> f;
+	printf( \
+		"<frame src=%s " \
+		"scrolling=yes " \
+		"name=fact_subview2>\n", Key2filename["banner"]) >> f;
+	print "</frameset>" >> f;
+	print "</html>" >> f;
+}
+
+func basename(aFile) {
+	sub(/\..+$/, "", aFile);
+	return aFile;
+}
